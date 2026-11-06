@@ -1,5 +1,5 @@
-import { parseChord, findVoicings, chordTonePositions, transposeSymbol, TUNINGS, QUALITY_CHIPS, NOTE_NAMES_SHARP, noteName, midiName, midiToFreq } from "./chords.js";
-import { chordDiagram, fretboard } from "./diagram.js";
+import { parseChord, findVoicings, transposeSymbol, TUNINGS, QUALITY_CHIPS, NOTE_NAMES_SHARP, noteName, midiName, midiToFreq } from "./chords.js";
+import { chordDiagram } from "./diagram.js";
 import { strum, pluckOne } from "./audio.js";
 import { Tuner, freqToMidi } from "./tuner.js";
 import { api } from "./api.js";
@@ -15,8 +15,8 @@ const store = {
 };
 
 const state = {
-  mode: store.get("mode", "guitar"), // guitar | bass
-  tuningId: store.get("tuningId", { guitar: "std", bass: "std" }),
+  // 예전 버전(기타/베이스 별도 저장) 값도 호환
+  tuningId: (() => { const v = store.get("tuningId", "std"); return typeof v === "string" ? v : v?.guitar || "std"; })(),
   capo: store.get("capo", 0),
   chordText: store.get("chord", "C"),
   voicingIdx: 0,
@@ -41,30 +41,19 @@ function toast(msg) {
 }
 
 // ---------- 튜닝 ----------
-function allTunings(mode = state.mode) {
-  const custom = state.tunings.filter((t) => t.instrument === mode).map((t) => ({ id: "c:" + t.id, name: t.name, notes: t.notes, custom: true, rawId: t.id }));
-  return [...TUNINGS[mode], ...custom];
+function allTunings() {
+  const custom = state.tunings.map((t) => ({ id: "c:" + t.id, name: t.name, notes: t.notes, custom: true, rawId: t.id }));
+  return [...TUNINGS.guitar, ...custom];
 }
 function currentTuning() {
   const list = allTunings();
-  return list.find((t) => t.id === state.tuningId[state.mode]) || list[0];
+  return list.find((t) => t.id === state.tuningId) || list[0];
 }
 function renderTuningSelects() {
   const list = allTunings();
-  const html = `<optgroup label="기본">${TUNINGS[state.mode].map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</optgroup>` +
+  const html = `<optgroup label="기본">${TUNINGS.guitar.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</optgroup>` +
     (list.some((t) => t.custom) ? `<optgroup label="내 튜닝">${list.filter((t) => t.custom).map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("")}</optgroup>` : "");
   $$(".tuning-select").forEach((sel) => { sel.innerHTML = html; sel.value = currentTuning().id; });
-}
-
-// ---------- 모드 ----------
-function setMode(mode) {
-  state.mode = mode;
-  store.set("mode", mode);
-  document.body.dataset.mode = mode;
-  $$(".mode-btn").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
-  renderTuningSelects();
-  renderChord();
-  renderTunerStrings();
 }
 
 // ---------- 코드 피커 ----------
@@ -110,13 +99,13 @@ function renderChord() {
     return;
   }
   const tuning = currentTuning().notes;
-  const isFav = state.favorites.some((f) => f.chord === c.symbol && f.instrument === state.mode);
+  const isFav = state.favorites.some((f) => f.chord === c.symbol);
   const tones = c.tones.map((t) => `<span class="tone-chip role-${t.interval === 0 ? "r" : [3, 4].includes(t.interval) ? "third" : [6, 7, 8].includes(t.interval) ? "fifth" : [9, 10, 11].includes(t.interval) ? "seventh" : "ext"}"><b>${esc(t.label)}</b>${esc(noteName(t.pc, c.useFlat))}${t.required ? "" : "<i>생략 가능</i>"}</span>`).join("");
   const head = `
     <div class="chord-head">
       <div>
         <h2 class="symbol">${esc(c.symbol)}</h2>
-        <p class="muted">${esc(c.qualityName)}${c.bass !== c.root ? ` · 베이스 ${esc(c.bassName)}` : ""}</p>
+        <p class="muted">${esc(c.qualityName)}${c.bass !== c.root ? ` · 최저음 ${esc(c.bassName)}` : ""}</p>
       </div>
       <div class="head-actions">
         <button type="button" class="icon-btn" id="play-btn" aria-label="소리 듣기">${ICON.play}</button>
@@ -125,60 +114,38 @@ function renderChord() {
     </div>
     <div class="tones">${tones}</div>`;
 
-  if (state.mode === "guitar") {
-    state.voicings = findVoicings(c, tuning, { capo: state.capo, limit: 10 });
-    if (!state.voicings.length) {
-      out.innerHTML = `<div class="card">${head}<p class="empty muted">이 튜닝에서는 4프렛 안에 잡히는 운지를 찾지 못했어요.</p></div>`;
-      bindResult(c);
-      return;
-    }
-    state.voicingIdx = Math.min(state.voicingIdx, state.voicings.length - 1);
-    const v = state.voicings[state.voicingIdx];
-    const capoNote = state.capo ? `<p class="capo-note">카포 ${state.capo}프렛 기준 · <b>${esc(transposeSymbol(c, -state.capo))}</b> 코드 모양</p>` : "";
-    const shapeText = v.frets.map((f) => (f < 0 ? "x" : f)).join(" ");
-    out.innerHTML = `
-      <div class="card">
-        ${head}
-        ${capoNote}
-        <div class="voicing" id="voicing">
-          <button type="button" class="nav prev" aria-label="이전 운지" ${state.voicingIdx === 0 ? "disabled" : ""}>${ICON.left}</button>
-          <div class="diagram-wrap">${chordDiagram(v, tuning, { capo: state.capo, useFlat: c.useFlat })}</div>
-          <button type="button" class="nav next" aria-label="다음 운지" ${state.voicingIdx >= state.voicings.length - 1 ? "disabled" : ""}>${ICON.right}</button>
-        </div>
-        <div class="voicing-meta">
-          <span class="pager">${state.voicings.map((_, i) => `<i class="${i === state.voicingIdx ? "on" : ""}"></i>`).join("")}</span>
-          <span class="muted small">${state.voicingIdx + 1} / ${state.voicings.length} · <code>${shapeText}</code>${v.barre ? " · 바레" : ""}</span>
-        </div>
-      </div>`;
+  state.voicings = findVoicings(c, tuning, { capo: state.capo, limit: 10 });
+  if (!state.voicings.length) {
+    out.innerHTML = `<div class="card">${head}<p class="empty muted">이 튜닝에서는 4프렛 안에 잡히는 운지를 찾지 못했어요.</p></div>`;
     bindResult(c);
-    bindSwipe($("#voicing"));
-  } else {
-    const pos = chordTonePositions(c, tuning, 12);
-    out.innerHTML = `
-      <div class="card">
-        ${head}
-        <p class="muted small board-hint">점을 누르면 그 음을 들을 수 있어요. 근음(R)부터 잡고 3도·5도로 움직여 보세요.</p>
-        <div class="board-wrap">${fretboard(pos, tuning, { maxFret: 12, useFlat: c.useFlat })}</div>
-        <div class="legend"><span class="lg r">R 근음</span><span class="lg third">3도</span><span class="lg fifth">5도</span><span class="lg seventh">6·7도</span><span class="lg ext">텐션</span></div>
-      </div>`;
-    bindResult(c);
-    $$(".board .tone").forEach((g) => g.addEventListener("click", () => pluckOne(Number(g.dataset.midi), true)));
+    return;
   }
+  state.voicingIdx = Math.min(state.voicingIdx, state.voicings.length - 1);
+  const v = state.voicings[state.voicingIdx];
+  const capoNote = state.capo ? `<p class="capo-note">카포 ${state.capo}프렛 기준 · <b>${esc(transposeSymbol(c, -state.capo))}</b> 코드 모양</p>` : "";
+  const shapeText = v.frets.map((f) => (f < 0 ? "x" : f)).join(" ");
+  out.innerHTML = `
+    <div class="card">
+      ${head}
+      ${capoNote}
+      <div class="voicing" id="voicing">
+        <button type="button" class="nav prev" aria-label="이전 운지" ${state.voicingIdx === 0 ? "disabled" : ""}>${ICON.left}</button>
+        <div class="diagram-wrap">${chordDiagram(v, tuning, { capo: state.capo, useFlat: c.useFlat })}</div>
+        <button type="button" class="nav next" aria-label="다음 운지" ${state.voicingIdx >= state.voicings.length - 1 ? "disabled" : ""}>${ICON.right}</button>
+      </div>
+      <div class="voicing-meta">
+        <span class="pager">${state.voicings.map((_, i) => `<i class="${i === state.voicingIdx ? "on" : ""}"></i>`).join("")}</span>
+        <span class="muted small">${state.voicingIdx + 1} / ${state.voicings.length} · <code>${shapeText}</code>${v.barre ? " · 바레" : ""}</span>
+      </div>
+    </div>`;
+  bindResult(c);
+  bindSwipe($("#voicing"));
 }
 
 function bindResult(c) {
   $("#play-btn")?.addEventListener("click", () => {
-    if (state.mode === "guitar") {
-      const v = state.voicings[state.voicingIdx];
-      if (v) strum(v.notes);
-    } else {
-      // 베이스: 근음(가장 낮은 위치) → 3도/5도 → 옥타브 아르페지오
-      const tuning = currentTuning().notes;
-      let rootMidi = tuning[0];
-      while (rootMidi % 12 !== c.bass) rootMidi++;
-      const seq = [rootMidi, ...c.tones.filter((t) => t.interval !== 0).map((t) => rootMidi + ((t.pc - rootMidi % 12 + 12) % 12)), rootMidi + 12];
-      seq.forEach((m, i) => setTimeout(() => pluckOne(m, true), i * 260));
-    }
+    const v = state.voicings[state.voicingIdx];
+    if (v) strum(v.notes);
   });
   $("#fav-btn")?.addEventListener("click", () => toggleFavorite(c));
   $("#voicing .prev")?.addEventListener("click", () => moveVoicing(-1));
@@ -207,14 +174,14 @@ function bindSwipe(el) {
 
 // ---------- 저장 (이 브라우저) ----------
 async function toggleFavorite(c) {
-  const existing = state.favorites.find((f) => f.chord === c.symbol && f.instrument === state.mode);
+  const existing = state.favorites.find((f) => f.chord === c.symbol);
   try {
     if (existing) {
       await api.removeFavorite(existing.id);
       state.favorites = state.favorites.filter((f) => f.id !== existing.id);
       toast("즐겨찾기에서 뺐어요");
     } else {
-      const f = await api.addFavorite({ chord: c.symbol, instrument: state.mode });
+      const f = await api.addFavorite({ chord: c.symbol, instrument: "guitar" });
       state.favorites.unshift(f);
       toast("즐겨찾기에 추가했어요");
     }
@@ -237,16 +204,16 @@ async function loadUserData() {
 // ---------- 내 저장 탭 ----------
 function renderSaved() {
   const el = $("#saved");
-  const favs = state.favorites.filter((f) => f.instrument === state.mode);
+  const favs = state.favorites;
   el.innerHTML = `
     <p class="muted small saved-note">로그인 없이 이 기기의 브라우저에 저장돼요. 다른 기기와는 공유되지 않아요.</p>
     <section class="card">
-      <div class="sec-head"><h3>즐겨찾기 코드</h3><span class="muted small">${state.mode === "guitar" ? "어쿠스틱" : "베이스"}</span></div>
+      <div class="sec-head"><h3>즐겨찾기 코드</h3></div>
       ${favs.length ? `<div class="chips">${favs.map((f) => `<button type="button" class="chip big" data-chord="${esc(f.chord)}">${esc(f.chord)}</button>`).join("")}</div>` : `<p class="muted small">코드 화면에서 ☆를 누르면 여기에 모여요.</p>`}
     </section>
     <section class="card">
       <div class="sec-head"><h3>내 튜닝</h3><button type="button" class="btn small" id="new-tuning">+ 새 튜닝</button></div>
-      ${state.tunings.length ? `<ul class="list">${state.tunings.map((t) => `<li><div><b>${esc(t.name)}</b><span class="muted small">${t.instrument === "guitar" ? "어쿠스틱" : "베이스"} · ${t.notes.map((m) => esc(midiName(m).replace(/-?\d+$/, ""))).join(" ")}</span></div><div class="row"><button type="button" class="btn small" data-apply-tuning="${esc(t.id)}">적용</button><button type="button" class="icon-btn small" data-del-tuning="${esc(t.id)}" aria-label="삭제">${ICON.trash}</button></div></li>`).join("")}</ul>` : `<p class="muted small">드롭 C, 오픈 E 같은 나만의 튜닝을 저장해 두세요.</p>`}
+      ${state.tunings.length ? `<ul class="list">${state.tunings.map((t) => `<li><div><b>${esc(t.name)}</b><span class="muted small">${t.notes.map((m) => esc(midiName(m).replace(/-?\d+$/, ""))).join(" ")}</span></div><div class="row"><button type="button" class="btn small" data-apply-tuning="${esc(t.id)}">적용</button><button type="button" class="icon-btn small" data-del-tuning="${esc(t.id)}" aria-label="삭제">${ICON.trash}</button></div></li>`).join("")}</ul>` : `<p class="muted small">드롭 C, 오픈 E 같은 나만의 튜닝을 저장해 두세요.</p>`}
     </section>
     <section class="card">
       <div class="sec-head"><h3>코드 진행 / 곡 메모</h3><button type="button" class="btn small" id="new-song">+ 새 메모</button></div>
@@ -286,10 +253,10 @@ function openSongEditor(song) {
 function openTuningEditor() {
   const base = currentTuning();
   const n = base.notes.length;
-  const range = state.mode === "guitar" ? [33, 69] : [21, 48];
+  const range = [33, 69];
   const options = (sel) => { let o = ""; for (let m = range[0]; m <= range[1]; m++) o += `<option value="${m}" ${m === sel ? "selected" : ""}>${midiName(m)}</option>`; return o; };
   openSheet(`
-    <h3>새 ${state.mode === "guitar" ? "기타" : "베이스"} 튜닝</h3>
+    <h3>새 기타 튜닝</h3>
     <form id="tuning-form" class="form">
       <label>이름<input name="name" required maxlength="40" placeholder="예: 드롭 C"/></label>
       <div class="string-pickers">${base.notes.map((m, i) => `<label class="sp"><span>${n - i}번줄</span><select name="s${i}">${options(m)}</select></label>`).join("")}</div>
@@ -301,9 +268,9 @@ function openTuningEditor() {
     const fd = new FormData(e.target);
     const notes = base.notes.map((_, i) => Number(fd.get("s" + i)));
     try {
-      const t = await api.addTuning({ name: fd.get("name"), instrument: state.mode, notes });
+      const t = await api.addTuning({ name: fd.get("name"), instrument: "guitar", notes });
       state.tunings.push(t);
-      state.tuningId[state.mode] = "c:" + t.id;
+      state.tuningId = "c:" + t.id;
       store.set("tuningId", state.tuningId);
       closeSheet(); renderTuningSelects(); renderChord(); renderSaved(); renderTunerStrings();
       toast("튜닝을 저장하고 적용했어요");
@@ -408,8 +375,6 @@ const ICON = {
 
 // ---------- 이벤트 연결 ----------
 function init() {
-  document.body.dataset.mode = state.mode;
-  $$(".mode-btn").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   $$(".tab-btn").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
   $("#chord-form").addEventListener("submit", (e) => { e.preventDefault(); lookup($("#chord-input").value); $("#chord-input").blur(); });
   $("#sheet").addEventListener("click", (e) => { if (e.target.id === "sheet" || e.target.closest("[data-close]")) closeSheet(); });
@@ -432,27 +397,26 @@ function init() {
       try {
         await api.removeTuning(b.dataset.delTuning);
         state.tunings = state.tunings.filter((t) => t.id !== b.dataset.delTuning);
-        for (const m of ["guitar", "bass"]) if (state.tuningId[m] === "c:" + b.dataset.delTuning) state.tuningId[m] = "std";
+        if (state.tuningId === "c:" + b.dataset.delTuning) state.tuningId = "std";
         store.set("tuningId", state.tuningId);
         renderSaved(); renderTuningSelects(); renderChord(); renderTunerStrings();
       } catch (err) { toast(err.message); }
     } else if (b.dataset.applyTuning) {
       const t = state.tunings.find((x) => x.id === b.dataset.applyTuning);
-      if (t.instrument !== state.mode) setMode(t.instrument);
-      state.tuningId[t.instrument] = "c:" + t.id;
+      state.tuningId = "c:" + t.id;
       store.set("tuningId", state.tuningId);
       renderTuningSelects(); renderChord(); renderTunerStrings();
       toast(`${t.name} 튜닝을 적용했어요`);
     } else if (b.dataset.string) {
       lockedString = b.dataset.string === "auto" ? null : Number(b.dataset.string);
       renderTunerStrings();
-      if (b.dataset.midi) pluckOne(Number(b.dataset.midi), state.mode === "bass");
+      if (b.dataset.midi) pluckOne(Number(b.dataset.midi));
     }
   });
 
   document.addEventListener("change", (e) => {
     if (e.target.classList.contains("tuning-select")) {
-      state.tuningId[state.mode] = e.target.value;
+      state.tuningId = e.target.value;
       store.set("tuningId", state.tuningId);
       renderTuningSelects(); renderChord(); renderTunerStrings();
     } else if (e.target.id === "capo-select") {
@@ -474,8 +438,6 @@ function init() {
   $("#capo-select").innerHTML = Array.from({ length: 10 }, (_, i) => `<option value="${i}">${i === 0 ? "카포 없음" : `카포 ${i}프렛`}</option>`).join("");
   $("#capo-select").value = String(state.capo);
 
-
-  $$(".mode-btn").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === state.mode)));
   renderTuningSelects();
   renderPicker();
   renderRecent();

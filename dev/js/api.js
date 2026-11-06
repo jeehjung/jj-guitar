@@ -24,15 +24,15 @@ function remove(k, itemId) {
 }
 
 export const api = {
-  favorites: async () => ({ items: load("favorites") }),
+  favorites: async () => ({ items: load("favorites").filter((f) => f.instrument !== "bass") }),
   addFavorite: async ({ chord, instrument }) => {
-    const existing = load("favorites").find((f) => f.chord === chord && f.instrument === instrument);
+    const existing = load("favorites").find((f) => f.chord === chord && f.instrument !== "bass");
     if (existing) return existing;
     return add("favorites", { id: id(), chord: str(chord, 24), instrument }, "즐겨찾기는 최대 300개까지 저장할 수 있어요");
   },
   removeFavorite: async (itemId) => remove("favorites", itemId),
 
-  tunings: async () => ({ items: load("tunings").slice().reverse() }),
+  tunings: async () => ({ items: load("tunings").filter((t) => t.instrument !== "bass").reverse() }),
   addTuning: async ({ name, instrument, notes }) => {
     const n = str(name, 40);
     if (!n) throw new Error("튜닝 이름을 입력해 주세요");
