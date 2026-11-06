@@ -1,5 +1,5 @@
 // 기타 줄 튕김 소리 합성 (Karplus-Strong)
-import { midiToFreq } from "./chords.js";
+import { midiToFreq } from "./chords.js?v=79699ac";
 
 let ctx = null;
 const cache = new Map();

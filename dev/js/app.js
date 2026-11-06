@@ -1,9 +1,9 @@
-import { parseChord, findVoicings, transposeSymbol, TUNINGS, QUALITY_CHIPS, NOTE_NAMES_SHARP, noteName, midiName, midiToFreq } from "./chords.js";
-import { chordDiagram } from "./diagram.js";
-import { explainChord } from "./explain.js";
-import { strum, pluckOne } from "./audio.js";
-import { Tuner, freqToMidi } from "./tuner.js";
-import { api } from "./api.js";
+import { parseChord, findVoicings, transposeSymbol, TUNINGS, QUALITY_CHIPS, NOTE_NAMES_SHARP, noteName, midiName, midiToFreq } from "./chords.js?v=79699ac";
+import { chordDiagram } from "./diagram.js?v=79699ac";
+import { explainChord } from "./explain.js?v=79699ac";
+import { strum, pluckOne } from "./audio.js?v=79699ac";
+import { Tuner, freqToMidi } from "./tuner.js?v=79699ac";
+import { api } from "./api.js?v=79699ac";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];

@@ -1,5 +1,5 @@
 // 코드 다이어그램 / 지판 SVG 렌더링
-import { midiName } from "./chords.js";
+import { midiName } from "./chords.js?v=79699ac";
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 

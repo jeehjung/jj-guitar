@@ -1,5 +1,5 @@
 // 코드 생성 원리 설명 (순수 함수, 브라우저/Node 공용)
-import { noteName, transposeSymbol } from "./chords.js";
+import { noteName, transposeSymbol } from "./chords.js?v=79699ac";
 
 /** 음정(반음 수)을 코드 종류에 맞는 한국어 이름과 공식 기호로 */
 export function intervalInfo(interval, quality) {
