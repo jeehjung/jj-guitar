@@ -251,3 +251,30 @@ main { max-width: 560px; margin: 0 auto; padding: 14px 16px 24px; }
   .symbol { font-size: 3rem; }
 }
 .saved-note { margin: 0 4px; }
+
+/* ---------- 코드 원리 설명 ---------- */
+.explain { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.explain summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.explain summary::-webkit-details-marker { display: none; }
+.explain summary::after { content: "＋"; color: var(--accent); font-weight: 700; }
+.explain[open] summary::after { content: "－"; }
+.ex-body h4 { margin: 14px 0 4px; font-size: .95rem; }
+.ex-body p { margin: 4px 0; }
+.ex-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.ex-steps li { display: grid; grid-template-columns: 2.6em 1fr auto; align-items: baseline; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border-left: 4px solid var(--ext); }
+.ex-steps li b { font-size: 1.05rem; }
+.ex-steps li em { font-style: normal; font-size: .8rem; color: var(--muted); }
+.ex-steps li i { grid-column: 2 / -1; font-style: normal; font-size: .75rem; color: var(--muted); margin-top: -4px; }
+.ex-steps .role-r { border-left-color: var(--r); } .ex-steps .role-third { border-left-color: var(--third); }
+.ex-steps .role-fifth { border-left-color: var(--fifth); } .ex-steps .role-seventh { border-left-color: var(--seventh); }
+.formula { margin-top: 10px !important; font-size: .9rem; color: var(--muted); }
+.formula code { color: var(--text); font-size: 1rem; font-weight: 600; margin-left: 6px; }
+.ex-char { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: .92rem; margin-top: 10px !important; }
+.ex-strings { list-style: none; margin: 8px 0 0; padding: 0; }
+.ex-strings li { display: grid; grid-template-columns: 3.6em 1fr auto; gap: 8px; align-items: baseline; padding: 7px 2px; border-top: 1px solid var(--line); font-size: .92rem; }
+.ex-strings li:first-child { border-top: 0; }
+.ex-strings .sn { color: var(--muted); font-size: .82rem; font-weight: 600; }
+.ex-strings .pos { color: var(--muted); }
+.ex-strings .role-r b { color: var(--r); } .ex-strings .role-third b { color: var(--third); } .ex-strings .role-fifth b { color: var(--fifth); }
+.ex-strings .role-seventh b { color: var(--seventh); } .ex-strings .role-ext b { color: var(--ext); }
+.ex-notes { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: .9rem; }
