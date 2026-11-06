@@ -30,6 +30,16 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Stamp version for cache busting
+        run: |
+          set -euo pipefail
+          V="${GITHUB_SHA::7}"
+          rm -rf build && cp -R public build
+          sed -i -E "s#(href|src)=\"(css/app\.css|js/app\.js)\"#\1=\"\2?v=$V\"#g" build/index.html
+          sed -i -E "s#(from \"\./[a-z]+\.js)\"#\1?v=$V\"#g" build/js/*.js
+          grep -q "app.js?v=$V" build/index.html
+          grep -q "?v=$V" build/js/app.js
+
       - name: Publish to gh-pages (루트 교체, /dev/ 유지)
         run: |
           set -euo pipefail
@@ -43,7 +53,7 @@ jobs:
             (cd site && git checkout --orphan gh-pages && git rm -rfq --ignore-unmatch . && git clean -fdq)
           fi
           find site -mindepth 1 -maxdepth 1 ! -name .git ! -name dev -exec rm -rf {} +
-          cp -R public/. site/
+          cp -R build/. site/
           touch site/.nojekyll
           cd site
           git add -A
