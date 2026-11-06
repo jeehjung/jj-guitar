@@ -1,0 +1,27 @@
+# JJ 기타
+
+코드를 입력하면 어쿠스틱 기타 운지법(여러 폼)과 베이스 코드톤 위치를 보여주고, 휴대폰 마이크로 줄을 맞출 수 있는 웹앱입니다.
+
+## 기능
+- 코드 검색: `C`, `Am7`, `F#m7b5`, `G/B`, `Cadd9`, `D6/9` 등 → 튜닝·카포 기준으로 운지 계산, 여러 폼 넘겨보기
+- 어쿠스틱 / 베이스 모드: 베이스는 지판 위에 근음·3도·5도·7도 위치 표시
+- 코드 소리 듣기, 카포 위치별 운지 (카포 기준 모양 이름 표시)
+- 마이크 튜너 (표준·드롭 D·반음 다운·오픈 튜닝, 베이스 4/5현), 줄별 기준음 재생
+- Google 로그인 후 저장: 즐겨찾기 코드, 내 튜닝 프리셋, 코드 진행/곡 메모
+
+## 구조
+- `public/` 정적 화면 (빌드 없음, 순수 ES 모듈)
+- `functions/api/[[path]].js` Cloudflare Pages Functions API
+- `migrations/` D1 스키마
+- `test/` `npm test` (코드 엔진·튜너·API)
+
+## 배포 (운영/개발 분리)
+| 브랜치 | 환경 | Pages 프로젝트 | D1 | 주소 |
+|---|---|---|---|---|
+| `dev` | 개발 | jj-guitar-dev | jj-guitar-dev | https://jj-guitar-dev.pages.dev |
+| `main` | 운영 | jj-guitar | jj-guitar-prod | https://jj-guitar.pages.dev |
+
+모든 변경은 `dev`에만 커밋하고, 개발 환경 검증 후 `main`으로 머지합니다. 운영에 직접 커밋하지 않습니다.
+
+필요한 GitHub Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GOOGLE_CLIENT_SECRET`
+Google OAuth 리디렉션 URI: `https://jj-guitar-dev.pages.dev/api/auth/callback`, `https://jj-guitar.pages.dev/api/auth/callback`
