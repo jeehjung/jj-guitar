@@ -263,20 +263,6 @@ function assignFingers(frets, barre) {
   return map;
 }
 
-/** 베이스 모드: 지판 위 코드톤 위치 (0~maxFret) */
-export function chordTonePositions(chord, tuning, maxFret = 12) {
-  const byPc = new Map(chord.tones.map(t => [t.pc, t]));
-  if (!byPc.has(chord.bass)) byPc.set(chord.bass, { pc: chord.bass, interval: (chord.bass - chord.root + 12) % 12, label: "B", name: chord.bassName });
-  const out = [];
-  tuning.forEach((o, s) => {
-    for (let f = 0; f <= maxFret; f++) {
-      const t = byPc.get((o + f) % 12);
-      if (t) out.push({ string: s, fret: f, midi: o + f, label: t.interval === 0 ? "R" : t.label, interval: t.interval, isBass: (o + f) % 12 === chord.bass });
-    }
-  });
-  return out;
-}
-
 export const TUNINGS = {
   guitar: [
     { id: "std", name: "표준 (EADGBE)", notes: [40, 45, 50, 55, 59, 64] },
@@ -286,12 +272,6 @@ export const TUNINGS = {
     { id: "dadgad", name: "DADGAD", notes: [38, 45, 50, 55, 57, 62] },
     { id: "openg", name: "오픈 G (DGDGBD)", notes: [38, 43, 50, 55, 59, 62] },
     { id: "opend", name: "오픈 D (DADF#AD)", notes: [38, 45, 50, 54, 57, 62] },
-  ],
-  bass: [
-    { id: "std", name: "표준 4현 (EADG)", notes: [28, 33, 38, 43] },
-    { id: "dropd", name: "드롭 D (DADG)", notes: [26, 33, 38, 43] },
-    { id: "half", name: "반음 다운 (Eb)", notes: [27, 32, 37, 42] },
-    { id: "five", name: "5현 (BEADG)", notes: [23, 28, 33, 38, 43] },
   ],
 };
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JJ 기타</title>
-  <meta name="description" content="코드를 입력하면 기타·베이스 운지법을 보여주고, 마이크 튜너로 줄을 맞출 수 있어요." />
+  <meta name="description" content="코드를 입력하면 기타 운지법을 보여주고, 마이크 튜너로 줄을 맞출 수 있어요." />
   <meta name="theme-color" content="#1c1410" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,13 +12,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/app.css" />
 </head>
-<body data-mode="guitar">
+<body>
   <header class="top">
     <div class="brand"><span class="pick" aria-hidden="true"></span><span>JJ 기타</span></div>
-    <div class="mode" role="group" aria-label="악기 선택">
-      <button type="button" class="mode-btn" data-mode="guitar">어쿠스틱</button>
-      <button type="button" class="mode-btn" data-mode="bass">베이스</button>
-    </div>
   </header>
 
   <main>
@@ -33,7 +29,7 @@
       </div>
       <div class="settings">
         <label class="sel"><span>튜닝</span><select class="tuning-select" aria-label="튜닝"></select></label>
-        <label class="sel guitar-only"><span>카포</span><select id="capo-select" aria-label="카포"></select></label>
+        <label class="sel"><span>카포</span><select id="capo-select" aria-label="카포"></select></label>
       </div>
       <div id="recent" class="chips recent"></div>
       <div id="result"></div>

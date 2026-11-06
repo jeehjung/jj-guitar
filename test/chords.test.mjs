@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseChord, findVoicings, chordTonePositions, transposeSymbol, TUNINGS } from "../public/js/chords.js";
+import { parseChord, findVoicings, transposeSymbol, TUNINGS } from "../public/js/chords.js";
 
 const std = TUNINGS.guitar[0].notes;
 const shape = (v) => v.frets.map((f) => (f < 0 ? "x" : f)).join("");
@@ -25,7 +25,7 @@ test("대표 오픈 코드가 첫 번째 운지로 나온다", () => {
   }
 });
 
-test("모든 운지는 필수 구성음과 베이스음을 만족한다", () => {
+test("모든 운지는 필수 구성음과 최저음을 만족한다", () => {
   for (const sym of ["C", "F#m7b5", "G/B", "E7#9", "Bdim", "Asus2", "Dm9", "Ebmaj7"]) {
     const c = parseChord(sym);
     const vs = findVoicings(c, std);
@@ -44,12 +44,6 @@ test("카포를 적용하면 같은 소리를 내는 다른 모양이 된다", (
   const v = findVoicings(c, std, { capo: 2 })[0];
   assert.equal(shape(v), "x32010"); // 카포 2 + C 모양 = D
   assert.equal(transposeSymbol(c, -2), "C");
-});
-
-test("베이스 코드톤 위치", () => {
-  const pos = chordTonePositions(parseChord("C"), TUNINGS.bass[0].notes, 12);
-  assert.ok(pos.some((p) => p.string === 1 && p.fret === 3 && p.label === "R")); // A현 3프렛 = C
-  assert.ok(pos.every((p) => [0, 4, 7].includes(p.interval)));
 });
 
 import { detectPitch } from "../public/js/tuner.js";
