@@ -6,9 +6,6 @@
   "description": "기타·베이스 코드 운지법과 튜너 웹앱",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "dev": "wrangler pages dev public"
-  },
-  "devDependencies": {
-    "wrangler": "^4"
+    "dev": "python3 -m http.server 8000 --directory public"
   }
 }

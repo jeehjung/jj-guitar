@@ -1,4 +1,0 @@
-# 로컬 미리보기용 (npm run dev). 배포는 GitHub Actions가 환경별 프로젝트로 진행합니다.
-name = "jj-guitar-dev"
-compatibility_date = "2026-10-01"
-pages_build_output_dir = "./public"

@@ -6,18 +6,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
+# 개발·운영 배포가 같은 gh-pages 브랜치를 쓰므로 동시에 실행되지 않도록 묶음
 concurrency:
-  group: jj-guitar-dev-deploy
+  group: jj-guitar-gh-pages-publish
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: Checkout dev branch
         uses: actions/checkout@v4
@@ -29,19 +27,27 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install
-
       - name: Run tests
         run: npm test
 
-      - name: Verify secrets
+      - name: Publish to gh-pages (/dev/ 경로만 교체)
         run: |
-          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing CLOUDFLARE_API_TOKEN repository secret" && exit 1)
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing CLOUDFLARE_ACCOUNT_ID repository secret" && exit 1)
-
-      - name: Ensure development Pages project
-        run: .github/scripts/ensure-cloudflare.sh jj-guitar-dev dev
-
-      - name: Deploy development Pages site
-        run: npx wrangler pages deploy public --project-name=jj-guitar-dev --branch=dev --commit-dirty=true
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null; then
+            git fetch --depth=1 origin gh-pages
+            git worktree add --detach site FETCH_HEAD
+          else
+            git worktree add --detach site
+            (cd site && git checkout --orphan gh-pages && git rm -rfq --ignore-unmatch . && git clean -fdq)
+          fi
+          rm -rf site/dev
+          mkdir -p site/dev
+          cp -R public/. site/dev/
+          touch site/.nojekyll
+          cd site
+          git add -A
+          if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
+          git commit -q -m "Deploy development from ${GITHUB_SHA::7}"
+          git push origin HEAD:refs/heads/gh-pages
