@@ -1,14 +1,4 @@
-# 로컬 개발용 설정. 실제 배포 시에는 GitHub Actions가 환경별(dev/운영) 설정을 새로 생성합니다.
+# 로컬 미리보기용 (npm run dev). 배포는 GitHub Actions가 환경별 프로젝트로 진행합니다.
 name = "jj-guitar-dev"
 compatibility_date = "2026-10-01"
 pages_build_output_dir = "./public"
-
-[vars]
-APP_ORIGIN = "http://localhost:8788"
-GOOGLE_CLIENT_ID = "914417266341-6jcuk14qscujbq2e518q4nuslpo8d7sa.apps.googleusercontent.com"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "jj-guitar-dev"
-database_id = "local"
-migrations_dir = "migrations"
