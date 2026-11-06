@@ -1,5 +1,6 @@
 import { parseChord, findVoicings, transposeSymbol, TUNINGS, QUALITY_CHIPS, NOTE_NAMES_SHARP, noteName, midiName, midiToFreq } from "./chords.js";
 import { chordDiagram } from "./diagram.js";
+import { explainChord } from "./explain.js";
 import { strum, pluckOne } from "./audio.js";
 import { Tuner, freqToMidi } from "./tuner.js";
 import { api } from "./api.js";
@@ -137,9 +138,34 @@ function renderChord() {
         <span class="pager">${state.voicings.map((_, i) => `<i class="${i === state.voicingIdx ? "on" : ""}"></i>`).join("")}</span>
         <span class="muted small">${state.voicingIdx + 1} / ${state.voicings.length} · <code>${shapeText}</code>${v.barre ? " · 바레" : ""}</span>
       </div>
+      ${renderExplain(c, v, tuning)}
     </div>`;
   bindResult(c);
   bindSwipe($("#voicing"));
+}
+
+function renderExplain(c, v, tuning) {
+  const ex = explainChord(c, v, tuning, state.capo);
+  const open = store.get("explainOpen", true);
+  const steps = ex.steps.map((s) => `
+      <li class="role-${s.role}"><b>${esc(s.name)}</b><span>${esc(s.ko)}</span><em>${s.semitones === 0 ? "기준" : `반음 ${s.semitones}개 위`}</em>${s.required ? "" : `<i>생략 가능</i>`}</li>`).join("");
+  const strings = ex.strings.map((r) => r.fret < 0
+    ? `<li class="mute"><span class="sn">${r.stringNo}번줄</span><span class="pos">×</span><span class="muted">치지 않음</span></li>`
+    : `<li><span class="sn">${r.stringNo}번줄</span><span class="pos">${r.fret === 0 ? (state.capo ? "카포" : "개방") : `${r.fret}프렛`}${r.finger ? ` · ${r.finger}번 손가락` : ""}</span><span class="role-${r.role}"><b>${esc(r.note)}</b> ${esc(r.ko)}</span></li>`).join("");
+  return `
+    <details class="explain" ${open ? "open" : ""}>
+      <summary>이 코드는 어떻게 만들어지나요?</summary>
+      <div class="ex-body">
+        <h4>1. 구성음 쌓기</h4>
+        <p class="muted small">근음 <b>${esc(noteName(c.root, c.useFlat))}</b>에서 반음 몇 개 위의 음을 쌓느냐가 코드 종류를 결정해요. 기타는 한 프렛이 반음 하나예요.</p>
+        <ol class="ex-steps">${steps}</ol>
+        <p class="formula">공식 <code>${esc(ex.formula)}</code></p>
+        ${ex.character ? `<p class="ex-char">${esc(ex.character)}</p>` : ""}
+        <h4>2. 이 운지에서 각 줄의 역할</h4>
+        <ul class="ex-strings">${strings}</ul>
+        ${ex.notes.length ? `<ul class="ex-notes">${ex.notes.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+      </div>
+    </details>`;
 }
 
 function bindResult(c) {
@@ -148,6 +174,7 @@ function bindResult(c) {
     if (v) strum(v.notes);
   });
   $("#fav-btn")?.addEventListener("click", () => toggleFavorite(c));
+  $(".explain")?.addEventListener("toggle", (e) => store.set("explainOpen", e.target.open));
   $("#voicing .prev")?.addEventListener("click", () => moveVoicing(-1));
   $("#voicing .next")?.addEventListener("click", () => moveVoicing(1));
 }

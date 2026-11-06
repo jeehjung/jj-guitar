@@ -62,3 +62,20 @@ test("튜너 음정 감지 (합성 파형)", () => {
   }
   assert.equal(detectPitch(new Float32Array(4096), sr), null);
 });
+
+import { explainChord } from "../public/js/explain.js";
+test("코드 원리 설명", () => {
+  const std = TUNINGS.guitar[0].notes;
+  const am7 = parseChord("Am7");
+  const ex = explainChord(am7, findVoicings(am7, std)[0], std);
+  assert.equal(ex.formula, "1 – ♭3 – 5 – ♭7");
+  assert.deepEqual(ex.steps.map((s) => s.ko), ["근음", "단3도", "완전5도", "단7도"]);
+  assert.equal(ex.strings.length, 6);
+  assert.equal(ex.strings[0].text, "치지 않음"); // x02010 의 6번줄
+  assert.equal(ex.strings[1].ko, "근음");
+  const gb = parseChord("G/B");
+  assert.ok(explainChord(gb, findVoicings(gb, std)[0], std).notes[0].includes("분수 코드"));
+  const d = parseChord("D");
+  assert.ok(explainChord(d, findVoicings(d, std, { capo: 2 })[0], std, 2).notes.some((t) => t.includes("C 모양")));
+  assert.equal(explainChord(parseChord("Cdim7"), null, std).steps[3].ko, "감7도");
+});
