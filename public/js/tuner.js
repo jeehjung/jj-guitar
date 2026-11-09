@@ -15,6 +15,12 @@ export function rms(buf) {
 
 /** 버퍼에서 기본 주파수(Hz) 추정. 소리가 없거나 불확실하면 null */
 export function detectPitch(input, sampleRate, minHz = 55, maxHz = 1000, minRms = 0.0015) {
+  const r = analyzePitch(input, sampleRate, { minHz, maxHz, minRms });
+  return r && r.clarity >= 0.5 ? r.freq : null;
+}
+
+/** 주파수와 확신도(clarity 0~1) 반환. 소리가 너무 작거나 주기성이 없으면 null */
+export function analyzePitch(input, sampleRate, { minHz = 55, maxHz = 1000, minRms = 0.0015, minClarity = 0.35 } = {}) {
   let buf = input, sr = sampleRate;
   while (sr > 30000) { buf = decimate(buf); sr /= 2; }
   const n = buf.length;
@@ -52,14 +58,14 @@ export function detectPitch(input, sampleRate, minHz = 55, maxHz = 1000, minRms 
   }
   if (!peaks.length) return null;
   const top = Math.max(...peaks.map((p) => p.v));
-  if (top < 0.5) return null;
+  if (top < minClarity) return null;
   const pick = peaks.find((p) => p.v >= top * 0.9);
   // 포물선 보간
   const l = pick.lag;
   const a = nsdf[l - 1], b = nsdf[l], c = nsdf[l + 1];
   const denom = a - 2 * b + c;
   const shift = denom !== 0 ? (0.5 * (a - c)) / denom : 0;
-  return sr / (l + shift);
+  return { freq: sr / (l + shift), clarity: top, rms: rms(x) };
 }
 
 export function freqToMidi(freq) {
@@ -96,7 +102,7 @@ export function describeOffset(cents) {
 }
 
 export class Tuner {
-  /** onUpdate({ freq: number|null, level: 0~1 }) */
+  /** onUpdate({ freq: number|null, level: 0~1, confident: boolean }) */
   constructor(onUpdate) {
     this.onUpdate = onUpdate;
     this.running = false;
@@ -123,28 +129,47 @@ export class Tuner {
     await resumed;
     if (this.ctx.state !== "running") await this.ctx.resume();
     const src = this.ctx.createMediaStreamSource(this.stream);
+    // 기타 음역 밖 잡음 제거 (저음 웅웅거림·고음 치찰음)
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = "highpass"; hp.frequency.value = 55; hp.Q.value = 0.7;
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = 1300; lp.Q.value = 0.7;
     this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 4096;
-    src.connect(this.analyser);
+    this.analyser.fftSize = 8192; // 약 0.17초 분량을 모아 작은 소리도 안정적으로 분석
+    src.connect(hp); hp.connect(lp); lp.connect(this.analyser);
     this.buf = new Float32Array(this.analyser.fftSize);
     this.history = [];
+    this.levels = []; // 최근 약 6초간 소리 크기 (주변 소음 바닥값 추정용)
     this.running = true;
     const loop = () => {
       if (!this.running) return;
       this.analyser.getFloatTimeDomainData(this.buf);
-      const level = Math.min(1, rms(this.buf) * 12);
-      const f = detectPitch(this.buf, this.ctx.sampleRate);
+      const level = rms(this.buf);
+      // 주변 소음 = 최근 6초 중 가장 조용했던 순간의 크기. 줄 소리가 잦아드는 건 소음으로 보지 않음
+      this.levels.push(level);
+      if (this.levels.length > 120) this.levels.shift();
+      const floor = Math.min(...this.levels);
+      const gate = Math.max(0.00025, floor * 1.6);
+      const r = analyzePitch(this.buf, this.ctx.sampleRate, { minRms: gate, minClarity: 0.45 });
+      const last = this.history[this.history.length - 1];
+      let f = null;
+      if (r) {
+        const near = last && Math.abs(freqToMidi(r.freq) - freqToMidi(last)) < 0.35;
+        // 확신도가 충분하거나, 조금 낮아도 직전 결과와 같은 음이면 받아들임 (잦아드는 소리 끝까지 추적)
+        if (r.clarity >= 0.6 || (near && r.clarity >= 0.5)) f = r.freq;
+      }
+      const meter = Math.min(1, Math.sqrt(level / 0.05));
       if (f) {
-        // 직전 값과 반음 이상 튀면 새 소리로 보고 기록 초기화
-        const last = this.history[this.history.length - 1];
         if (last && Math.abs(freqToMidi(f) - freqToMidi(last)) > 0.7) this.history = [];
         this.history.push(f);
-        if (this.history.length > 5) this.history.shift();
+        if (this.history.length > 7) this.history.shift();
         const sorted = [...this.history].sort((x, y) => x - y);
-        this.onUpdate({ freq: sorted[Math.floor(sorted.length / 2)], level });
+        // confident: 소리가 또렷하고 여러 번 같은 값이 나왔을 때만 '맞음' 체크에 사용
+        this.onUpdate({ freq: sorted[Math.floor(sorted.length / 2)], level: meter, confident: r.clarity >= 0.75 && this.history.length >= 3 });
       } else {
-        this.history = [];
-        this.onUpdate({ freq: null, level });
+        this.onUpdate({ freq: null, level: meter });
+        // 잠깐 끊겨도 같은 줄이면 이어서 쓰도록 바로 지우지 않음
+        if (!r) this.history = this.history.slice(-2);
       }
       this.timer = setTimeout(loop, 50);
     };

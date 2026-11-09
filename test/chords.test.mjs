@@ -105,3 +105,14 @@ test("코드 원리 설명", () => {
   assert.ok(explainChord(d, findVoicings(d, std, { capo: 2 })[0], std, 2).notes.some((t) => t.includes("C 모양")));
   assert.equal(explainChord(parseChord("Cdim7"), null, std).steps[3].ko, "감7도");
 });
+
+import { analyzePitch } from "../public/js/tuner.js";
+test("작은 소리도 감지 (소리 크기 1/10, 잡음 섞임)", () => {
+  const sr = 48000;
+  for (const f of [82.41, 110, 196, 329.63]) {
+    const buf = pluck(f, sr, 8192, 0.0006).map((v) => v * 0.1 + 0); // 진폭 약 0.002
+    const r = analyzePitch(buf, sr, { minRms: 0.0003, minClarity: 0.35 });
+    assert.ok(r, `${f}Hz 작은 소리 감지 실패`);
+    assert.ok(Math.abs(1200 * Math.log2(r.freq / f)) < 5, `${f}Hz → ${r.freq}`);
+  }
+});

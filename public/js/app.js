@@ -330,12 +330,12 @@ function renderTunerStrings() {
     t.notes.map((m, i) => `<button type="button" class="chip str ${lockedString === i ? "on" : ""} ${tunedStrings.has(t.id + ":" + i) ? "done" : ""}" data-string="${i}" data-midi="${m}"><small>${t.notes.length - i}번</small>${esc(midiName(m).replace(/-?\d+$/, ""))}</button>`).join("");
 }
 
-function onTunerUpdate({ freq, level }) {
+function onTunerUpdate({ freq, level, confident }) {
   $("#tuner-level").style.width = Math.round(level * 100) + "%";
   const box = $("#tuner-display");
   if (!freq) {
-    // 소리가 멈춰도 1.5초 동안은 마지막 결과를 보여줌
-    if (Date.now() - lastHeard > 1500) {
+    // 소리가 멈춰도 2.5초 동안은 마지막 결과를 보여줌
+    if (Date.now() - lastHeard > 2500) {
       box.classList.remove("in-tune", "low", "high", "heard");
       $("#tuner-hint").textContent = "줄을 하나씩 튕겨 주세요";
     } else box.classList.add("fading");
@@ -358,7 +358,7 @@ function onTunerUpdate({ freq, level }) {
   $("#tuner-hint").textContent = r.inTune ? "이 줄은 맞았어요 · 다음 줄을 튕겨 주세요"
     : r.direction === "low" ? "줄을 조여서 음을 올려 주세요" : "줄을 풀어서 음을 내려 주세요";
   $("#tuner-hz").textContent = `들리는 음 ${midiName(Math.round(freqToMidi(freq)))} · ${freq.toFixed(1)} Hz / 목표 ${midiName(r.targetMidi)} · ${midiToFreq(r.targetMidi).toFixed(1)} Hz`;
-  if (r.inTune) tunedStrings.add(t.id + ":" + r.index);
+  if (r.inTune && confident) tunedStrings.add(t.id + ":" + r.index);
   $$("#tuner-strings .str").forEach((b) => {
     const i = Number(b.dataset.string);
     b.classList.toggle("hit", i === r.index);
