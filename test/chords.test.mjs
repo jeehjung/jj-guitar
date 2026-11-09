@@ -46,21 +46,47 @@ test("카포를 적용하면 같은 소리를 내는 다른 모양이 된다", (
   assert.equal(transposeSymbol(c, -2), "C");
 });
 
-import { detectPitch } from "../public/js/tuner.js";
-test("튜너 음정 감지 (합성 파형)", () => {
-  const sr = 48000;
-  for (const f of [41.2, 55, 82.41, 110, 196, 329.63]) {
-    const buf = new Float32Array(4096);
-    // 배음이 섞인 현 소리 흉내
-    for (let i = 0; i < buf.length; i++) {
-      const t = i / sr;
-      buf[i] = 0.5 * Math.sin(2 * Math.PI * f * t) + 0.35 * Math.sin(2 * Math.PI * 2 * f * t) + 0.2 * Math.sin(2 * Math.PI * 3 * f * t);
-    }
-    const got = detectPitch(buf, sr);
-    const cents = 1200 * Math.log2(got / f);
-    assert.ok(Math.abs(cents) < 3, `${f}Hz → ${got}`);
+import { detectPitch, analyzeString, describeOffset } from "../public/js/tuner.js";
+function pluck(f, sr, n = 4096, noise = 0) {
+  const buf = new Float32Array(n);
+  let seed = 1;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    // 배음이 섞인 현 소리 + 약한 휴대폰 마이크 수준 크기
+    buf[i] = 0.02 * (0.5 * Math.sin(2 * Math.PI * f * t) + 0.4 * Math.sin(2 * Math.PI * 2 * f * t) + 0.25 * Math.sin(2 * Math.PI * 3 * f * t)) + noise * rnd();
   }
-  assert.equal(detectPitch(new Float32Array(4096), sr), null);
+  return buf;
+}
+test("튜너 음정 감지 (기타 음역, 작은 소리·잡음 포함)", () => {
+  for (const sr of [44100, 48000]) {
+    for (const f of [73.42, 82.41, 110, 146.83, 196, 246.94, 329.63]) {
+      const got = detectPitch(pluck(f, sr, 4096, 0.002), sr);
+      assert.ok(got, `${sr} ${f}Hz 감지 실패`);
+      const cents = 1200 * Math.log2(got / f);
+      assert.ok(Math.abs(cents) < 3, `${sr} ${f}Hz → ${got}`);
+    }
+  }
+  assert.equal(detectPitch(new Float32Array(4096), 48000), null);
+});
+
+test("튜너 줄 판별과 높낮이 표시", () => {
+  const std = TUNINGS.guitar[0].notes; // E2 A2 D3 G3 B3 E4
+  const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+  let r = analyzeString(hz(45) * Math.pow(2, -30 / 1200), std);
+  assert.deepEqual([r.stringNo, r.cents, r.direction], [5, -30, "low"]);
+  r = analyzeString(hz(64) * Math.pow(2, 12 / 1200), std);
+  assert.deepEqual([r.stringNo, r.cents, r.direction], [1, 12, "high"]);
+  r = analyzeString(hz(55), std);
+  assert.deepEqual([r.stringNo, r.inTune], [3, true]);
+  // 줄을 고정하면 많이 벗어나도 그 줄 기준으로 알려줌
+  r = analyzeString(hz(38), std, 0);
+  assert.deepEqual([r.stringNo, r.cents], [6, -200]);
+  assert.equal(describeOffset(3), "정확해요");
+  assert.equal(describeOffset(-30), "30센트 낮아요");
+  assert.equal(describeOffset(12), "12센트 높아요");
+  assert.equal(describeOffset(-200), "반음 2개 낮아요");
+  assert.equal(describeOffset(235), "반음 2개 + 35센트 높아요");
 });
 
 import { explainChord } from "../public/js/explain.js";

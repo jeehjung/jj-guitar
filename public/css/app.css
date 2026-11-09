@@ -183,24 +183,35 @@ main { max-width: 560px; margin: 0 auto; padding: 14px 16px 24px; }
 .tuner-display { margin: 14px 0 10px; padding: 18px 12px 12px; border-radius: 16px; background: var(--surface-2); text-align: center; transition: background .2s; }
 .tuner-display.in-tune { background: color-mix(in srgb, var(--good) 18%, var(--surface-2)); }
 .tuner-display.close { background: color-mix(in srgb, var(--warn) 14%, var(--surface-2)); }
-.meter { position: relative; height: 110px; overflow: hidden; }
-.arc { position: absolute; left: 50%; bottom: -120px; width: 240px; height: 240px; margin-left: -120px; border-radius: 50%;
-  background: conic-gradient(from -70deg, var(--line) 0 63deg, var(--good) 63deg 77deg, var(--line) 77deg 140deg, transparent 140deg);
-  -webkit-mask: radial-gradient(circle, transparent 104px, #000 105px); mask: radial-gradient(circle, transparent 104px, #000 105px); }
-.needle { position: absolute; left: 50%; bottom: 0; width: 3px; height: 104px; margin-left: -1.5px; background: var(--muted); border-radius: 2px; transform-origin: 50% 100%; transition: transform .12s ease-out; }
-.live .needle { background: var(--accent); }
-.in-tune .needle { background: var(--good); }
-.scale { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); padding: 0 4px; }
-.readout .note { font-family: "Gowun Dodum", sans-serif; font-size: 4rem; line-height: 1; font-weight: 700; margin-top: 4px; }
-.readout .sub { display: flex; justify-content: center; gap: 12px; color: var(--muted); font-weight: 600; margin-top: 4px; min-height: 1.5em; }
-.in-tune .cents { color: var(--good); }
-.hint { margin: 8px 0 0; font-weight: 600; }
-.hz { margin: 2px 0 0; min-height: 1.3em; }
+.t-string { display: flex; justify-content: center; align-items: baseline; gap: 10px; min-height: 64px; }
+.t-num { font-family: "Gowun Dodum", sans-serif; font-size: 3.4rem; line-height: 1.1; font-weight: 700; }
+.t-note { font-size: 1.6rem; font-weight: 700; color: var(--muted); }
+.t-offset { margin: 4px 0 14px; font-size: 1.35rem; font-weight: 700; min-height: 1.6em; }
+.low .t-offset { color: var(--third); }
+.high .t-offset { color: var(--r); }
+.in-tune .t-offset { color: var(--good); }
+.fading .t-num, .fading .t-offset, .fading .t-marker { opacity: .45; }
+.t-bar { position: relative; height: 34px; border-radius: 17px; background: linear-gradient(90deg, color-mix(in srgb, var(--third) 22%, var(--surface)), var(--surface) 42%, var(--surface) 58%, color-mix(in srgb, var(--r) 22%, var(--surface))); border: 1.5px solid var(--line); margin: 0 6px; }
+.t-zone { position: absolute; left: 45%; width: 10%; top: 3px; bottom: 3px; border-radius: 8px; background: color-mix(in srgb, var(--good) 28%, transparent); }
+.t-ticks { position: absolute; inset: 0; display: flex; justify-content: space-between; padding: 0 0; pointer-events: none; }
+.t-ticks i { width: 1px; background: var(--line); margin: 8px 0; }
+.t-ticks i:first-child, .t-ticks i:last-child { visibility: hidden; }
+.t-marker { position: absolute; top: -6px; bottom: -6px; left: 50%; width: 6px; margin-left: -3px; border-radius: 3px; background: var(--muted); transition: left .12s ease-out, background .2s; opacity: 0; }
+.heard .t-marker { opacity: 1; }
+.low .t-marker { background: var(--third); } .high .t-marker { background: var(--r); } .in-tune .t-marker { background: var(--good); }
+.t-marker.over { width: 10px; margin-left: -5px; }
+.t-scale { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin: 6px 4px 0; }
+.t-level { display: flex; align-items: center; gap: 8px; margin: 12px 6px 0; }
+.t-level-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+#tuner-level { height: 100%; width: 0; background: var(--accent); transition: width .08s linear; }
+.hint { margin: 12px 0 0; font-weight: 600; }
+.hz { margin: 6px 0 0; min-height: 1.3em; }
 .strings { justify-content: center; margin: 8px 0 6px; }
 .chip.str { display: inline-flex; align-items: center; gap: 4px; height: 44px; min-width: 48px; font-size: 1rem; }
 .chip.str small { font-size: .65rem; color: var(--muted); }
 .chip.str.on small { color: inherit; }
 .chip.str.hit { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.chip.str.done::after { content: "✓"; color: var(--good); font-weight: 700; margin-left: 2px; }
 #tuner-toggle { margin-top: 14px; }
 
 /* ---------- 내 저장 ---------- */

@@ -41,20 +41,20 @@
           <label class="sel"><span>튜닝</span><select class="tuning-select" aria-label="튜닝"></select></label>
         </div>
         <div id="tuner-display" class="tuner-display">
-          <div class="meter" aria-hidden="true">
-            <div class="scale"><span>낮음</span><span>높음</span></div>
-            <div class="arc"></div>
-            <div id="needle" class="needle"></div>
+          <div class="t-string"><span id="tuner-string" class="t-num">–</span><span id="tuner-note" class="t-note"></span></div>
+          <p id="tuner-offset" class="t-offset">튜너를 시작해 주세요</p>
+          <div class="t-bar" aria-hidden="true">
+            <div class="t-zone"></div>
+            <div class="t-ticks"><i></i><i></i><i></i><i></i><i></i></div>
+            <div id="tuner-marker" class="t-marker"></div>
           </div>
-          <div class="readout">
-            <div id="tuner-note" class="note">–</div>
-            <div class="sub"><span id="tuner-octave"></span><span id="tuner-cents" class="cents"></span></div>
-          </div>
+          <div class="t-scale" aria-hidden="true"><span>−50센트</span><span>정확</span><span>+50센트</span></div>
           <p id="tuner-hint" class="hint">마이크 권한을 허용하면 바로 음을 들을 수 있어요</p>
+          <div class="t-level" aria-hidden="true"><span class="muted small">마이크</span><div class="t-level-bar"><div id="tuner-level"></div></div></div>
           <p id="tuner-hz" class="muted small hz"></p>
         </div>
         <div id="tuner-strings" class="chips strings" aria-label="줄 선택"></div>
-        <p class="muted small center">줄 버튼을 누르면 기준음이 나오고 그 줄에 고정돼요.</p>
+        <p class="muted small center">줄 버튼을 누르면 기준음이 나오고 그 줄에 고정돼요. 100센트 = 반음 1개 = 1프렛</p>
         <button type="button" id="tuner-toggle" class="btn primary block big">튜너 시작</button>
         <button type="button" id="save-tuning-btn" class="btn block ghost">+ 내 튜닝 만들기</button>
       </div>

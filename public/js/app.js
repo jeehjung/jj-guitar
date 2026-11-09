@@ -2,7 +2,7 @@ import { parseChord, findVoicings, transposeSymbol, TUNINGS, QUALITY_CHIPS, NOTE
 import { chordDiagram } from "./diagram.js";
 import { explainChord } from "./explain.js";
 import { strum, pluckOne } from "./audio.js";
-import { Tuner, freqToMidi } from "./tuner.js";
+import { Tuner, freqToMidi, analyzeString, describeOffset } from "./tuner.js";
 import { api } from "./api.js";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -319,63 +319,93 @@ function closeSheet() {
 // ---------- 튜너 ----------
 let tuner = null;
 let lockedString = null; // null = 자동
+let lastHeard = 0;
+const tunedStrings = new Set();
 
 function renderTunerStrings() {
   const t = currentTuning();
   const el = $("#tuner-strings");
   if (!el) return;
   el.innerHTML = `<button type="button" class="chip ${lockedString === null ? "on" : ""}" data-string="auto">자동</button>` +
-    t.notes.map((m, i) => `<button type="button" class="chip str ${lockedString === i ? "on" : ""}" data-string="${i}" data-midi="${m}"><small>${t.notes.length - i}</small>${esc(midiName(m).replace(/-?\d+$/, ""))}</button>`).join("");
+    t.notes.map((m, i) => `<button type="button" class="chip str ${lockedString === i ? "on" : ""} ${tunedStrings.has(t.id + ":" + i) ? "done" : ""}" data-string="${i}" data-midi="${m}"><small>${t.notes.length - i}번</small>${esc(midiName(m).replace(/-?\d+$/, ""))}</button>`).join("");
 }
 
-function onPitch(freq) {
-  const noteEl = $("#tuner-note"), centsEl = $("#tuner-cents"), needle = $("#needle"), hz = $("#tuner-hz"), box = $("#tuner-display");
+function onTunerUpdate({ freq, level }) {
+  $("#tuner-level").style.width = Math.round(level * 100) + "%";
+  const box = $("#tuner-display");
   if (!freq) {
-    box.classList.remove("in-tune", "close");
-    hz.textContent = "줄을 튕겨 주세요";
+    // 소리가 멈춰도 1.5초 동안은 마지막 결과를 보여줌
+    if (Date.now() - lastHeard > 1500) {
+      box.classList.remove("in-tune", "low", "high", "heard");
+      $("#tuner-hint").textContent = "줄을 하나씩 튕겨 주세요";
+    } else box.classList.add("fading");
     return;
   }
-  const t = currentTuning().notes;
-  const midiF = freqToMidi(freq);
-  let target;
-  if (lockedString !== null) target = t[lockedString];
-  else target = t.reduce((a, b) => (Math.abs(b - midiF) < Math.abs(a - midiF) ? b : a));
-  // 목표 줄과 1옥타브 이상 차이나면 가장 가까운 반음 기준으로 표시
-  if (Math.abs(midiF - target) > 2.5) target = Math.round(midiF);
-  const cents = Math.round((midiF - target) * 100);
-  const idx = t.indexOf(target);
-  noteEl.textContent = midiName(target).replace(/-?\d+$/, "");
-  $("#tuner-octave").textContent = idx >= 0 ? `${t.length - idx}번줄` : midiName(target).match(/-?\d+$/)[0] + "옥타브";
-  centsEl.textContent = (cents > 0 ? "+" : "") + cents + "¢";
-  hz.textContent = `${freq.toFixed(1)} Hz · 목표 ${midiToFreq(target).toFixed(1)} Hz`;
-  const clamped = Math.max(-50, Math.min(50, cents));
-  needle.style.transform = `rotate(${clamped * 1.4}deg)`;
-  box.classList.toggle("in-tune", Math.abs(cents) <= 5);
-  box.classList.toggle("close", Math.abs(cents) > 5 && Math.abs(cents) <= 15);
-  $("#tuner-hint").textContent = Math.abs(cents) <= 5 ? "정확해요" : cents < 0 ? "음이 낮아요 · 줄을 조여 주세요" : "음이 높아요 · 줄을 풀어 주세요";
-  $$("#tuner-strings .str").forEach((b) => b.classList.toggle("hit", Number(b.dataset.midi) === target));
+  lastHeard = Date.now();
+  const t = currentTuning();
+  const r = analyzeString(freq, t.notes, lockedString);
+  box.classList.remove("fading");
+  box.classList.add("heard");
+  box.classList.toggle("in-tune", r.inTune);
+  box.classList.toggle("low", r.direction === "low");
+  box.classList.toggle("high", r.direction === "high");
+  $("#tuner-string").textContent = `${r.stringNo}번줄`;
+  $("#tuner-note").textContent = midiName(r.targetMidi).replace(/-?\d+$/, "");
+  $("#tuner-offset").textContent = describeOffset(r.cents);
+  const pos = 50 + Math.max(-50, Math.min(50, r.cents));
+  $("#tuner-marker").style.left = pos + "%";
+  $("#tuner-marker").classList.toggle("over", Math.abs(r.cents) > 50);
+  $("#tuner-hint").textContent = r.inTune ? "이 줄은 맞았어요 · 다음 줄을 튕겨 주세요"
+    : r.direction === "low" ? "줄을 조여서 음을 올려 주세요" : "줄을 풀어서 음을 내려 주세요";
+  $("#tuner-hz").textContent = `들리는 음 ${midiName(Math.round(freqToMidi(freq)))} · ${freq.toFixed(1)} Hz / 목표 ${midiName(r.targetMidi)} · ${midiToFreq(r.targetMidi).toFixed(1)} Hz`;
+  if (r.inTune) tunedStrings.add(t.id + ":" + r.index);
+  $$("#tuner-strings .str").forEach((b) => {
+    const i = Number(b.dataset.string);
+    b.classList.toggle("hit", i === r.index);
+    b.classList.toggle("done", tunedStrings.has(t.id + ":" + i));
+  });
 }
 
-async function toggleTuner() {
+function resetTunerDisplay(message) {
+  const box = $("#tuner-display");
+  box.classList.remove("live", "in-tune", "low", "high", "heard", "fading");
+  $("#tuner-string").textContent = "–";
+  $("#tuner-note").textContent = "";
+  $("#tuner-offset").textContent = message;
+  $("#tuner-marker").style.left = "50%";
+  $("#tuner-level").style.width = "0%";
+  $("#tuner-hz").textContent = "";
+}
+
+function toggleTuner() {
   const btn = $("#tuner-toggle");
   if (tuner?.running) {
     tuner.stop();
+    tuner = null;
     btn.textContent = "튜너 시작";
     btn.classList.remove("on");
-    $("#tuner-display").classList.remove("live", "in-tune", "close");
+    resetTunerDisplay("튜너를 시작해 주세요");
     $("#tuner-hint").textContent = "마이크 권한을 허용하면 바로 음을 들을 수 있어요";
     return;
   }
-  tuner = new Tuner(onPitch);
-  try {
-    await tuner.start();
+  tuner = new Tuner(onTunerUpdate);
+  btn.textContent = "마이크 연결 중…";
+  // 클릭 이벤트 안에서 바로 start() 호출해야 휴대폰에서 오디오가 켜짐
+  tuner.start().then(() => {
     btn.textContent = "튜너 정지";
     btn.classList.add("on");
     $("#tuner-display").classList.add("live");
+    $("#tuner-offset").textContent = "듣고 있어요";
     $("#tuner-hint").textContent = "줄을 하나씩 튕겨 주세요";
-  } catch (e) {
-    toast("마이크를 사용할 수 없어요. 브라우저 설정에서 마이크 권한을 허용해 주세요.");
-  }
+  }).catch((e) => {
+    tuner = null;
+    btn.textContent = "튜너 시작";
+    resetTunerDisplay("마이크를 사용할 수 없어요");
+    const denied = e?.name === "NotAllowedError" || e?.name === "SecurityError";
+    $("#tuner-hint").textContent = e?.code === "unsupported" ? e.message
+      : denied ? "마이크 권한이 거부됐어요. 주소창 옆 설정에서 마이크를 허용해 주세요." : "마이크를 열지 못했어요. 다른 앱이 마이크를 쓰고 있는지 확인해 주세요.";
+    toast($("#tuner-hint").textContent);
+  });
 }
 
 // ---------- 탭 ----------
