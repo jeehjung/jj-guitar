@@ -15,8 +15,8 @@
 ## 배포 (운영/개발 분리, GitHub Pages)
 | 브랜치 | 환경 | 주소 |
 |---|---|---|
-| `dev` | 개발 | https://jeehjung.github.io/jj-guitar/dev/ |
-| `main` | 운영 | https://jeehjung.github.io/jj-guitar/ |
+| `dev` | 개발 | https://jungjeehyun.github.io/guitarcode/dev/ |
+| `main` | 운영 | https://jungjeehyun.github.io/guitarcode/ |
 
 각 브랜치에 push하면 GitHub Actions가 테스트 후 `gh-pages` 브랜치의 해당 경로에 배포합니다 (추가 Secrets 불필요).
 모든 변경은 `dev`에만 커밋하고, 개발 환경 검증 후 `main`으로 머지합니다. 운영에 직접 커밋하지 않습니다.
