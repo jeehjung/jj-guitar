@@ -12,13 +12,15 @@
 - `public/` 정적 화면 (빌드 없음, 순수 ES 모듈)
 - `test/` `npm test` (코드 엔진·튜너)
 
-## 배포 (운영/개발 분리, GitHub Pages)
-| 브랜치 | 환경 | 주소 |
-|---|---|---|
-| `dev` | 개발 | https://jungjeehyun.github.io/guitarcode/dev/ |
-| `main` | 운영 | https://jungjeehyun.github.io/guitarcode/ |
+## 배포 (운영/개발 분리, Cloudflare Pages)
+| 브랜치 | 환경 | Cloudflare Pages 프로젝트 | 주소 |
+|---|---|---|---|
+| `dev` | 개발 | guitarcode-dev | https://guitarcode-dev.pages.dev |
+| `main` | 운영 | guitarcode | https://guitarcode.pages.dev |
 
-각 브랜치에 push하면 GitHub Actions가 테스트 후 `gh-pages` 브랜치의 해당 경로에 배포합니다 (추가 Secrets 불필요).
+각 브랜치에 push하면 GitHub Actions가 테스트 후 해당 Cloudflare Pages 프로젝트에 배포합니다.
 모든 변경은 `dev`에만 커밋하고, 개발 환경 검증 후 `main`으로 머지합니다. 운영에 직접 커밋하지 않습니다.
+
+필요한 GitHub Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 
 로컬 미리보기: `npm run dev` → http://localhost:8000
