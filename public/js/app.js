@@ -2,7 +2,7 @@ import { parseChord, findVoicings, transposeSymbol, TUNINGS, QUALITY_CHIPS, NOTE
 import { chordDiagram } from "./diagram.js";
 import { explainChord } from "./explain.js";
 import { strum, pluckOne } from "./audio.js";
-import { Tuner, freqToMidi, analyzeString, describeOffset } from "./tuner.js";
+import { Tuner, SENSITIVITY, freqToMidi, analyzeString, describeOffset } from "./tuner.js";
 import { api } from "./api.js";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -320,6 +320,25 @@ function closeSheet() {
 let tuner = null;
 let lockedString = null; // null = 자동
 let lastHeard = 0;
+let sensitivity = store.get("tunerSensitivity", "high");
+if (!SENSITIVITY[sensitivity]) sensitivity = "high";
+
+/** 튜닝(또는 고정한 줄) 기준으로 찾을 음 범위 */
+function tunerRange() {
+  const notes = currentTuning().notes;
+  const lo = lockedString !== null ? notes[lockedString] - 6 : Math.min(...notes) - 5;
+  const hi = lockedString !== null ? notes[lockedString] + 6 : Math.max(...notes) + 5;
+  return [midiToFreq(lo), midiToFreq(hi)];
+}
+function updateTunerRange() { if (tuner?.running) tuner.setRange(...tunerRange()); }
+
+function renderSensitivity() {
+  const el = $("#tuner-sens");
+  if (!el) return;
+  el.innerHTML = Object.entries(SENSITIVITY).map(([k, v]) => `<button type="button" class="seg ${k === sensitivity ? "on" : ""}" data-sens="${k}" aria-pressed="${k === sensitivity}">${v.label}</button>`).join("");
+  $("#tuner-sens-help").textContent = sensitivity === "max" ? "아주 작은 소리도 들어요. 마이크 자동 증폭을 켜요. 주변이 시끄러우면 '높음'으로 바꿔 주세요."
+    : sensitivity === "normal" ? "주변이 시끄러울 때 써요. 줄을 조금 세게 튕겨 주세요." : "대부분의 경우에 알맞아요. 작은 소리가 안 잡히면 '최대'로 바꿔 보세요.";
+}
 const tunedStrings = new Set();
 
 function renderTunerStrings() {
@@ -330,13 +349,13 @@ function renderTunerStrings() {
     t.notes.map((m, i) => `<button type="button" class="chip str ${lockedString === i ? "on" : ""} ${tunedStrings.has(t.id + ":" + i) ? "done" : ""}" data-string="${i}" data-midi="${m}"><small>${t.notes.length - i}번</small>${esc(midiName(m).replace(/-?\d+$/, ""))}</button>`).join("");
 }
 
-function onTunerUpdate({ freq, level, confident }) {
+function onTunerUpdate({ freq, level, confident, weak }) {
   $("#tuner-level").style.width = Math.round(level * 100) + "%";
   const box = $("#tuner-display");
   if (!freq) {
     // 소리가 멈춰도 2.5초 동안은 마지막 결과를 보여줌
     if (Date.now() - lastHeard > 2500) {
-      box.classList.remove("in-tune", "low", "high", "heard");
+      box.classList.remove("in-tune", "low", "high", "heard", "weak");
       $("#tuner-hint").textContent = "줄을 하나씩 튕겨 주세요";
     } else box.classList.add("fading");
     return;
@@ -346,16 +365,18 @@ function onTunerUpdate({ freq, level, confident }) {
   const r = analyzeString(freq, t.notes, lockedString);
   box.classList.remove("fading");
   box.classList.add("heard");
-  box.classList.toggle("in-tune", r.inTune);
+  box.classList.toggle("in-tune", r.inTune && !weak);
+  box.classList.toggle("weak", !!weak);
   box.classList.toggle("low", r.direction === "low");
   box.classList.toggle("high", r.direction === "high");
   $("#tuner-string").textContent = `${r.stringNo}번줄`;
   $("#tuner-note").textContent = midiName(r.targetMidi).replace(/-?\d+$/, "");
-  $("#tuner-offset").textContent = describeOffset(r.cents);
+  $("#tuner-offset").textContent = weak && r.inTune ? "거의 맞아요" : describeOffset(r.cents);
   const pos = 50 + Math.max(-50, Math.min(50, r.cents));
   $("#tuner-marker").style.left = pos + "%";
   $("#tuner-marker").classList.toggle("over", Math.abs(r.cents) > 50);
-  $("#tuner-hint").textContent = r.inTune ? "이 줄은 맞았어요 · 다음 줄을 튕겨 주세요"
+  $("#tuner-hint").textContent = weak ? "소리가 작아 값이 흔들릴 수 있어요 · 조금 더 세게 튕기거나 마이크에 가까이 대 주세요"
+    : r.inTune ? "이 줄은 맞았어요 · 다음 줄을 튕겨 주세요"
     : r.direction === "low" ? "줄을 조여서 음을 올려 주세요" : "줄을 풀어서 음을 내려 주세요";
   $("#tuner-hz").textContent = `들리는 음 ${midiName(Math.round(freqToMidi(freq)))} · ${freq.toFixed(1)} Hz / 목표 ${midiName(r.targetMidi)} · ${midiToFreq(r.targetMidi).toFixed(1)} Hz`;
   if (r.inTune && confident) tunedStrings.add(t.id + ":" + r.index);
@@ -368,7 +389,7 @@ function onTunerUpdate({ freq, level, confident }) {
 
 function resetTunerDisplay(message) {
   const box = $("#tuner-display");
-  box.classList.remove("live", "in-tune", "low", "high", "heard", "fading");
+  box.classList.remove("live", "in-tune", "low", "high", "heard", "fading", "weak");
   $("#tuner-string").textContent = "–";
   $("#tuner-note").textContent = "";
   $("#tuner-offset").textContent = message;
@@ -388,7 +409,8 @@ function toggleTuner() {
     $("#tuner-hint").textContent = "마이크 권한을 허용하면 바로 음을 들을 수 있어요";
     return;
   }
-  tuner = new Tuner(onTunerUpdate);
+  const [minHz, maxHz] = tunerRange();
+  tuner = new Tuner(onTunerUpdate, { sensitivity, minHz, maxHz });
   btn.textContent = "마이크 연결 중…";
   // 클릭 이벤트 안에서 바로 start() 호출해야 휴대폰에서 오디오가 켜짐
   tuner.start().then(() => {
@@ -464,9 +486,15 @@ function init() {
       store.set("tuningId", state.tuningId);
       renderTuningSelects(); renderChord(); renderTunerStrings();
       toast(`${t.name} 튜닝을 적용했어요`);
+    } else if (b.dataset.sens) {
+      sensitivity = b.dataset.sens;
+      store.set("tunerSensitivity", sensitivity);
+      tuner?.setSensitivity(sensitivity);
+      renderSensitivity();
     } else if (b.dataset.string) {
       lockedString = b.dataset.string === "auto" ? null : Number(b.dataset.string);
       renderTunerStrings();
+      updateTunerRange();
       if (b.dataset.midi) pluckOne(Number(b.dataset.midi));
     }
   });
@@ -475,7 +503,7 @@ function init() {
     if (e.target.classList.contains("tuning-select")) {
       state.tuningId = e.target.value;
       store.set("tuningId", state.tuningId);
-      renderTuningSelects(); renderChord(); renderTunerStrings();
+      renderTuningSelects(); renderChord(); renderTunerStrings(); updateTunerRange();
     } else if (e.target.id === "capo-select") {
       state.capo = Number(e.target.value);
       store.set("capo", state.capo);
@@ -500,6 +528,7 @@ function init() {
   renderRecent();
   lookup(state.chordText, { remember: false });
   renderTunerStrings();
+  renderSensitivity();
   renderSaved();
   loadUserData();
 }
