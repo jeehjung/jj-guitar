@@ -6,7 +6,14 @@
   <title>JJ 기타</title>
   <meta name="description" content="코드를 입력하면 기타 운지법을 보여주고, 마이크 튜너로 줄을 맞출 수 있어요." />
   <meta name="theme-color" content="#1c1410" />
+  <meta name="app-version" content="__APP_VERSION__" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="JJ 기타" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -15,6 +22,10 @@
 <body>
   <header class="top">
     <div class="brand"><span class="pick" aria-hidden="true"></span><span>JJ 기타</span></div>
+    <button type="button" id="install-btn" class="install-btn" hidden>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      <span>앱 설치</span>
+    </button>
   </header>
 
   <main>
@@ -64,6 +75,7 @@
 
     <section id="view-saved" class="view" hidden>
       <div id="saved"></div>
+      <p id="app-version" class="muted small version-note"></p>
     </section>
   </main>
 

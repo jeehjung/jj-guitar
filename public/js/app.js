@@ -4,6 +4,7 @@ import { explainChord } from "./explain.js";
 import { strum, pluckOne } from "./audio.js";
 import { Tuner, SENSITIVITY, freqToMidi, analyzeString, describeOffset } from "./tuner.js";
 import { api } from "./api.js";
+import { initPWA, appVersion } from "./pwa.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -530,6 +531,16 @@ function init() {
   renderTunerStrings();
   renderSensitivity();
   renderSaved();
+  $("#app-version").textContent = `버전 ${appVersion()}`;
+  // 홈 화면 바로가기(?tab=tuner)로 열었을 때
+  const startTab = new URLSearchParams(location.search).get("tab");
+  if (["chord", "tuner", "saved"].includes(startTab)) setTab(startTab);
+  initPWA({
+    // 튜너 사용 중, 시트(메모·튜닝 입력) 열림, 글자 입력 중이면 새로고침을 미룸
+    isBusy: () => !!tuner?.running || !$("#sheet").hidden || ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName),
+    notify: toast,
+    openSheet,
+  });
   loadUserData();
 }
 

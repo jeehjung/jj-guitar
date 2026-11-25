@@ -37,15 +37,8 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing CLOUDFLARE_API_TOKEN repository secret" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing CLOUDFLARE_ACCOUNT_ID repository secret" && exit 1)
 
-      - name: Stamp version for cache busting
-        run: |
-          set -euo pipefail
-          V="${GITHUB_SHA::7}"
-          rm -rf build && cp -R public build
-          sed -i -E "s#(href|src)=\"(css/app\.css|js/app\.js)\"#\1=\"\2?v=$V\"#g" build/index.html
-          sed -i -E "s#(from \"\./[a-z]+\.js)\"#\1?v=$V\"#g" build/js/*.js
-          grep -q "app.js?v=$V" build/index.html
-          grep -q "?v=$V" build/js/app.js
+      - name: Stamp version (cache busting, PWA auto-update)
+        run: node scripts/stamp.mjs public build "${GITHUB_SHA::7}"
 
       - name: Deploy production to Cloudflare Pages (guitarcode)
         run: npx --yes wrangler@4 pages deploy build --project-name=guitarcode --branch=main --commit-dirty=true

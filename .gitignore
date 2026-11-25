@@ -1,6 +1,6 @@
-node_modules
-.wrangler
-.dev.vars
-.DS_Store
 *.log
+.DS_Store
+.dev.vars
+.wrangler
 build
+node_modules

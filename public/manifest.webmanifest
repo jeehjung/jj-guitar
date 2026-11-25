@@ -1,0 +1,22 @@
+{
+  "name": "JJ 기타 — 코드 운지법·튜너",
+  "short_name": "JJ 기타",
+  "description": "코드를 입력하면 기타 운지법을 보여주고, 마이크 튜너로 줄을 맞출 수 있어요.",
+  "lang": "ko",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5ede2",
+  "theme_color": "#1c1410",
+  "categories": ["music", "education", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "튜너", "short_name": "튜너", "url": "./?tab=tuner", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
