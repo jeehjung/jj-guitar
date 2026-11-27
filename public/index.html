@@ -103,5 +103,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="js/app.js"></script>
+<!-- 내 앱 현황 방문 기록: 하루 한 번만 보냄, 실패해도 앱에 영향 없음 -->
+<script>(function(a){try{var h=location.hostname;if(location.protocol!=='https:'||/^(localhost|127\.)/.test(h))return;var d=/-dev\./.test(h),k='adVisit',t=new Date(Date.now()+324e5).toISOString().slice(0,10);try{if(localStorage.getItem(k)===t)return;localStorage.setItem(k,t)}catch(_){}var u=(d?'https://app-dashboard-dev.pages.dev':'https://app-dashboard-1c4.pages.dev')+'/api/v',b=JSON.stringify({a:a,e:d?'dev':'prod'});if(navigator.sendBeacon)navigator.sendBeacon(u,b);else fetch(u,{method:'POST',body:b,keepalive:true,mode:'no-cors'})}catch(e){}})('guitar');</script>
 </body>
 </html>
